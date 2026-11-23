@@ -5,13 +5,13 @@
     {
       "id": "start",
       "type": "start",
-      "position": {"x": 80, "y": 160},
+      "position": {"x": 60, "y": 180},
       "config": {"input": "秋日傍晚的上海梧桐道"}
     },
     {
       "id": "llm1",
       "type": "llm",
-      "position": {"x": 360, "y": 160},
+      "position": {"x": 400, "y": 180},
       "config": {
         "prompt": "把下面的场景扩写成一句七言诗：{{ start.output }}",
         "mock": true,
@@ -21,7 +21,7 @@
     {
       "id": "end",
       "type": "end",
-      "position": {"x": 640, "y": 160},
+      "position": {"x": 740, "y": 180},
       "config": {"output": "{{ llm1.output }}"}
     }
   ],
