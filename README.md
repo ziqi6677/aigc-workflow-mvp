@@ -1,9 +1,17 @@
 # AIGC Workflow MVP
 
-一个最小可运行的 **AIGC 可视化工作流** 演示项目：在画布上拖拽节点、连线编排 AI 生成链路，后端按 DAG 拓扑排序依次执行。
+一个最小可运行的 **AIGC 可视化工作流** 演示项目：在画布上拖拽节点、连线编排 AI 生成链路，按 DAG 拓扑排序依次执行。
 
 > 概念对标 GitHub 开源项目 [**langgenius/dify**](https://github.com/langgenius/dify)（以及 [shrimbly/node-banana](https://github.com/shrimbly/node-banana)）。
 > 本仓库只保留 Dify 工作流引擎的最小骨架：开始 / LLM / 模板 / 结束 四类节点、变量引用、拓扑执行、画布编排，便于二次扩展。
+
+## 在线访问（公网）
+
+本项目已部署为纯静态站点，无需安装任何东西，直接打开：
+
+**https://ziqi6677.github.io/aigc-workflow-mvp/**
+
+> 页面执行引擎跑在浏览器本地（`docs/index.html` 内置 JS 引擎），不依赖后端服务器；LLM 节点默认使用内置离线 Mock。
 
 ## 功能一览
 
@@ -13,9 +21,9 @@
   - `llm` 大模型节点：提示词中用 `{{ 节点ID.output }}` 引用上游输出；内置离线 Mock，无 API Key 也能跑通
   - `template` 模板节点：文本拼接与变量替换
   - `end` 结束节点：汇总最终输出
-- ⚙️ **执行引擎**：Kahn 拓扑排序，自动检测环路；逐节点记录状态、输出与耗时
+- ⚙️ **执行引擎**：Kahn 拓扑排序，自动检测环路；逐节点记录状态、输出与耗时（Python 与浏览器 JS 各有一份对等实现）
 - 💾 **JSON 导入 / 导出**：工作流可序列化为可移植的 JSON 文件
-- 🖥️ **双入口**：Web 画布（FastAPI + 原生前端）与命令行（`run.py`）
+- 🖥️ **三种运行方式**：在线静态站点 / 本地 FastAPI 服务 / 命令行（`run.py`）
 
 ## 目录结构
 
@@ -28,8 +36,10 @@ aigc-workflow-mvp/
 ├── examples/
 │   ├── hello_poem.json  # 示例：输入主题 -> LLM 成诗 -> 输出
 │   └── template_chain.json
+├── docs/
+│   └── index.html       # GitHub Pages 静态站点（内置浏览器端引擎，双击即可离线打开）
 ├── static/
-│   └── index.html       # 单页画布（原生 HTML/JS，无需构建）
+│   └── index.html       # 本地 FastAPI 服务使用的同版画布
 ├── tests/
 │   └── test_engine.py   # 引擎单元测试
 ├── run.py               # CLI 运行入口
@@ -37,13 +47,15 @@ aigc-workflow-mvp/
 └── README.md
 ```
 
-## 快速开始
+## 本地运行
 
-> **注意**：本项目是跑在你**自己电脑上**的程序，不是部署在云端的网站。
-> 下面的 `http://127.0.0.1:8000` 是你本机的本地地址——必须先在本机启动服务，
-> 这个地址才能打开；直接点开 README 里的链接、或在别人电脑上访问都是无效的。
+### 方式一：直接打开静态页面（无需 Python）
 
-### 1. 克隆代码并安装依赖
+用浏览器打开 `docs/index.html` 即可编排和运行，引擎全部在浏览器本地执行。
+
+### 方式二：本地 FastAPI 服务（可选）
+
+> 下面的 `http://127.0.0.1:8000` 是你本机的本地地址——必须先在本机启动服务才能打开。
 
 ```bash
 git clone https://github.com/ziqi6677/aigc-workflow-mvp.git
@@ -52,16 +64,10 @@ cd aigc-workflow-mvp
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### 2. 启动 Web 画布（在你自己的电脑上执行下面这条命令）
-
-```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-看到 `Uvicorn running on http://127.0.0.1:8000` 后，**再在本机浏览器**打开
-<http://127.0.0.1:8000>：
+服务启动后，在本机浏览器打开 <http://127.0.0.1:8000>：
 
 1. 点击「载入示例」加载预置工作流
 2. 在画布上调整节点、连线，或在右侧面板修改提示词
@@ -71,7 +77,7 @@ uvicorn app.main:app --reload --port 8000
 > 如果 8000 端口被占用，可换端口：`uvicorn app.main:app --port 8010`，
 > 然后浏览器访问对应的 <http://127.0.0.1:8010>。
 
-### 3. 命令行运行（不启动 Web 服务）
+### 方式三：命令行运行（不启动 Web 服务）
 
 ```bash
 python run.py examples/hello_poem.json

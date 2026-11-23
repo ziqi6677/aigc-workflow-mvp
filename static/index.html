@@ -346,12 +346,103 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 浏览器端执行引擎（与 app/engine.py 对等实现，纯前端离线运行）
+  // ---------------------------------------------------------------------------
+  const VAR_PATTERN = /\{\{\s*([a-zA-Z0-9_\-]+)\.([a-zA-Z0-9_\-]+)\s*\}\}/g;
+
+  function resolveTemplate(text, outputs) {
+    return text.replace(VAR_PATTERN, (_, nodeId, attr) => {
+      if (!(nodeId in outputs)) throw new Error(`引用了不存在的上游节点: ${nodeId}`);
+      const v = outputs[nodeId][attr];
+      return v == null ? '' : String(v);
+    });
+  }
+
+  function topoOrder(nodes, adj) {
+    const indeg = {};
+    nodes.forEach(n => indeg[n.id] = 0);
+    Object.values(adj).forEach(targets => targets.forEach(t => indeg[t]++));
+    const queue = Object.keys(indeg).filter(id => indeg[id] === 0);
+    const order = [];
+    while (queue.length) {
+      const cur = queue.shift();
+      order.push(cur);
+      (adj[cur] || []).forEach(nxt => { if (--indeg[nxt] === 0) queue.push(nxt); });
+    }
+    if (order.length !== nodes.length) throw new Error('工作流图中存在环，无法执行');
+    return order;
+  }
+
+  function runWorkflow(workflow) {
+    const nodes = workflow.nodes || [];
+    const edges = workflow.edges || [];
+    if (!nodes.length) throw new Error('工作流不能为空：至少需要一个节点');
+    const nodeMap = {}, adj = {};
+    nodes.forEach(n => { nodeMap[n.id] = n; adj[n.id] = []; });
+    edges.forEach(e => {
+      if (!nodeMap[e.source] || !nodeMap[e.target]) throw new Error(`连线引用了不存在的节点: ${e.source} -> ${e.target}`);
+      adj[e.source].push(e.target);
+    });
+
+    const outputs = {};
+    const nodeResults = [];
+    let finalOutput = null;
+    const order = topoOrder(nodes, adj);
+
+    for (const id of order) {
+      const node = nodeMap[id];
+      const cfg = node.config || {};
+      const started = performance.now();
+      try {
+        let out;
+        if (node.type === 'start') {
+          out = { output: cfg.input || '' };
+        } else if (node.type === 'llm') {
+          const prompt = resolveTemplate(cfg.prompt || '', outputs);
+          if (cfg.mock === false) {
+            out = { output: '[真实 LLM] 静态演示版未接入模型接口，请保持 Mock 模式' };
+          } else if (cfg.mock_style === 'poem') {
+            out = { output: `【模拟成诗】\n${prompt}\n—— 韵脚悠然，意境自成。` };
+          } else {
+            out = { output: `[Mock LLM] 已处理输入: ${prompt}` };
+          }
+        } else if (node.type === 'template') {
+          out = { output: resolveTemplate(cfg.text || '', outputs) };
+        } else if (node.type === 'end') {
+          out = { output: resolveTemplate(cfg.output || '', outputs) };
+        } else {
+          throw new Error(`不支持的节点类型: ${node.type}`);
+        }
+        outputs[id] = out;
+        finalOutput = out.output;
+        nodeResults.push({ node_id: id, node_type: node.type, status: 'success', output: out.output, error: null, elapsed_ms: Math.round((performance.now() - started) * 100) / 100 });
+      } catch (err) {
+        nodeResults.push({ node_id: id, node_type: node.type, status: 'error', output: null, error: String(err), elapsed_ms: Math.round((performance.now() - started) * 100) / 100 });
+        return { status: 'error', final_output: null, error: `节点 ${id} 执行失败: ${err}`, node_results: nodeResults };
+      }
+    }
+    return { status: 'success', final_output: finalOutput, error: null, node_results: nodeResults };
+  }
+
+  // 内置示例（原 /api/workflow/example 接口的离线等价物）
+  const EXAMPLE_WORKFLOW = {
+    name: 'hello-poem',
+    nodes: [
+      { id: 'start', type: 'start', position: { x: 80, y: 160 }, config: { input: '秋日傍晚的上海梧桐道' } },
+      { id: 'llm1', type: 'llm', position: { x: 360, y: 160 }, config: { prompt: '把下面的场景扩写成一句七言诗：{{ start.output }}', mock: true, mock_style: 'poem' } },
+      { id: 'end', type: 'end', position: { x: 640, y: 160 }, config: { output: '{{ llm1.output }}' } }
+    ],
+    edges: [
+      { source: 'start', target: 'llm1' },
+      { source: 'llm1', target: 'end' }
+    ]
+  };
+
+  // ---------------------------------------------------------------------------
   // 工具栏动作
   // ---------------------------------------------------------------------------
-  document.getElementById('btn-example').addEventListener('click', async () => {
-    const res = await fetch('/api/workflow/example');
-    const data = await res.json();
-    loadWorkflow(data);
+  document.getElementById('btn-example').addEventListener('click', () => {
+    loadWorkflow(JSON.parse(JSON.stringify(EXAMPLE_WORKFLOW)));
   });
 
   document.getElementById('btn-clear').addEventListener('click', () => {
@@ -383,14 +474,15 @@
     logEl.prepend(div);
   }
 
-  document.getElementById('btn-run').addEventListener('click', async () => {
+  document.getElementById('btn-run').addEventListener('click', () => {
     logEl.innerHTML = '';
-    const res = await fetch('/api/workflow/run', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workflow: serialize() }),
-    });
-    const data = await res.json();
-    if (data.detail) { addLog({ status: 'error', error: data.detail }); return; }
+    let data;
+    try {
+      data = runWorkflow(serialize());
+    } catch (err) {
+      addLog({ status: 'error', error: String(err) });
+      return;
+    }
     (data.node_results || []).forEach(addLog);
     if (data.status === 'success') {
       addLog({ status: 'success', node_id: 'final', node_type: 'output', output: data.final_output });
