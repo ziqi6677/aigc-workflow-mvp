@@ -1,0 +1,32 @@
+{
+  "name": "hello-poem",
+  "description": "示例：开始节点输入主题 -> LLM 节点改写成诗 -> 结束节点输出结果（离线 mock，无需 API Key）",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "position": {"x": 80, "y": 160},
+      "config": {"input": "秋日傍晚的上海梧桐道"}
+    },
+    {
+      "id": "llm1",
+      "type": "llm",
+      "position": {"x": 360, "y": 160},
+      "config": {
+        "prompt": "把下面的场景扩写成一句七言诗：{{ start.output }}",
+        "mock": true,
+        "mock_style": "poem"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "position": {"x": 640, "y": 160},
+      "config": {"output": "{{ llm1.output }}"}
+    }
+  ],
+  "edges": [
+    {"source": "start", "target": "llm1"},
+    {"source": "llm1", "target": "end"}
+  ]
+}

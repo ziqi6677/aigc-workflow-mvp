@@ -1,0 +1,35 @@
+{
+  "name": "template-chain",
+  "description": "示例：开始 -> 模板节点拼接文案 -> LLM 润色 -> 结束，演示多节点变量传递",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "position": {"x": 60, "y": 120},
+      "config": {"input": "产品发布通知"}
+    },
+    {
+      "id": "tpl1",
+      "type": "template",
+      "position": {"x": 300, "y": 120},
+      "config": {"text": "请为以下内容写一段小红书风格的标题：{{ start.output }}"}
+    },
+    {
+      "id": "llm1",
+      "type": "llm",
+      "position": {"x": 560, "y": 120},
+      "config": {"prompt": "{{ tpl1.output }}", "mock": true, "mock_style": "echo"}
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "position": {"x": 820, "y": 120},
+      "config": {"output": "{{ llm1.output }}"}
+    }
+  ],
+  "edges": [
+    {"source": "start", "target": "tpl1"},
+    {"source": "tpl1", "target": "llm1"},
+    {"source": "llm1", "target": "end"}
+  ]
+}
