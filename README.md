@@ -39,26 +39,37 @@ aigc-workflow-mvp/
 
 ## 快速开始
 
-### 1. 安装依赖
+> **注意**：本项目是跑在你**自己电脑上**的程序，不是部署在云端的网站。
+> 下面的 `http://127.0.0.1:8000` 是你本机的本地地址——必须先在本机启动服务，
+> 这个地址才能打开；直接点开 README 里的链接、或在别人电脑上访问都是无效的。
+
+### 1. 克隆代码并安装依赖
 
 ```bash
+git clone https://github.com/ziqi6677/aigc-workflow-mvp.git
+cd aigc-workflow-mvp
+
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. 启动 Web 画布
+### 2. 启动 Web 画布（在你自己的电脑上执行下面这条命令）
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-浏览器打开 <http://127.0.0.1:8000>：
+看到 `Uvicorn running on http://127.0.0.1:8000` 后，**再在本机浏览器**打开
+<http://127.0.0.1:8000>：
 
 1. 点击「载入示例」加载预置工作流
 2. 在画布上调整节点、连线，或在右侧面板修改提示词
 3. 点击「运行工作流」，右侧日志区查看每个节点的输出与最终结果
 4. 「导出 JSON」保存当前编排，「导入 JSON」恢复
+
+> 如果 8000 端口被占用，可换端口：`uvicorn app.main:app --port 8010`，
+> 然后浏览器访问对应的 <http://127.0.0.1:8010>。
 
 ### 3. 命令行运行（不启动 Web 服务）
 
